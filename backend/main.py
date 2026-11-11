@@ -1,10 +1,13 @@
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
@@ -51,7 +54,7 @@ class TaskItem(Base):
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Auto Deploy Test API", version="1.0.0")
+app = FastAPI(title="Auto Deploy Unified App", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -91,6 +94,7 @@ def health_check(db: Session = Depends(get_db)):
     total = db.query(TaskItem).count()
     return {
         "status": "ok",
+        "mode": "unified-single-domain",
         "database_type": DB_LABEL,
         "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "local"),
         "task_count": total,
@@ -130,3 +134,24 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"deleted": True, "id": task_id}
+
+
+# --- 前后端合体静态托管（优先读取云端构建的 ./static，其次读取本地 ../frontend/dist）---
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+if not STATIC_DIR.exists():
+    STATIC_DIR = BASE_DIR.parent / "frontend" / "dist"
+
+if STATIC_DIR.exists() and (STATIC_DIR / "index.html").exists():
+    assets_dir = STATIC_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_react_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        candidate = (STATIC_DIR / full_path).resolve()
+        if full_path and candidate.is_file() and STATIC_DIR.resolve() in candidate.parents:
+            return FileResponse(str(candidate))
+        return FileResponse(str(STATIC_DIR / "index.html"))

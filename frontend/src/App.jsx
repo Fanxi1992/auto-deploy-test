@@ -71,10 +71,10 @@ export default function App() {
       <div className="container">
         <header className="hero">
           <div>
-            <span className="badge">Antigravity × Railway 自动化流水线</span>
-            <h1>React + FastAPI + MySQL 全栈测试台</h1>
+            <span className="badge">Antigravity × Railway · 单域名合体模式 v2.0</span>
+            <h1>React + FastAPI + MySQL 全栈测试台（单服务一体版）</h1>
             <p className="subtitle">
-              告别宝塔手工打包、配反代、建库——本地验证通过后，一句话推送 GitHub 自动上线。
+              前后端已合二为一：全项目仅运行 1 个 Python 容器、仅需绑定 1 个域名、同源零跨域！
             </p>
           </div>
           <div className="status-card">
